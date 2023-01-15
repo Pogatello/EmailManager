@@ -1,0 +1,138 @@
+﻿@page "/"
+@using EmailManager.Contract;
+@using EmailManager.Messaging.EmailViews;
+@using EmailManager.Messaging.Request;
+
+@inject IEmailService _emailService;
+@inject INotificationService _notificationService;
+
+<PageTitle>Send Email</PageTitle>
+
+<div class="container mt-5" style="border: 1px solid lightgray; padding: 20px;">
+    <h3 class="mb-3">New email</h3>
+    <EditForm Model="@Message" OnValidSubmit="@CreateNewEmail">
+        <DataAnnotationsValidator />
+        <div class="form-group">
+
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label" for="txtForm">From</label>
+                    <InputText class="form-control" id="txtForm" placeholder="example@email.com" @bind-Value="Message.From" />
+                    <ValidationMessage For="@(() => Message.From)" />
+                </div>
+                <div class="col">
+                    <label class="form-label" for="txtTo">To</label>
+                    <InputText class="form-control" id="txtTo" placeholder="example@email.com" @bind-Value="Message.To" />
+                    <ValidationMessage For="@(() => Message.To)" />
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label" for="txtCC">CC</label>
+                    <InputText class="form-control" id="txtCC" placeholder="example@email.com;example@email.com" @bind-Value="Message.CC" />
+                    <ValidationMessage For="@(() => Message.CC)" />
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label" for="txtSubject">Subject</label>
+                    <InputText class="form-control" id="txtSubject" @bind-Value="Message.Subject" />
+                    <ValidationMessage For="@(() => Message.Subject)" />
+                </div>
+                <div class="col-3">
+                    <label class="form-label" for="dllPriority">Priority</label>
+                    <InputSelect @bind-Value="Message.Priority" class="form-select">
+                        @foreach (var item in Enum.GetValues(typeof(Priority)))
+                        {
+                            <option value="@item">@item</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => Message.Priority)" />
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label" for="txtContent">Content</label>
+                    <InputTextArea class="form-control" id="txtContent" @bind-Value="Message.Content" rows="7" />
+                    <ValidationMessage For="@(() => Message.Content)" />
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col">
+                    <button type="submit" class="btn btn-primary">Send</button>
+                    <button class="btn btn-warning" @onclick="() => OpenCancleEmailModal()">Cancle</button>
+                </div>
+            </div>
+
+        </div>
+
+    </EditForm>
+</div>
+
+<Modal @ref="CancleEmailModal">
+    <ModalContent Centered>
+        <ModalHeader>
+            <ModalTitle>Warning</ModalTitle>
+            <CloseButton />
+        </ModalHeader>
+        <ModalBody>
+                Are you sure you want to cancle this email? Your proggress will be reverted.
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="@CloseCancleEmailModal">Close</Button>
+            <Button Color="Color.Primary" Clicked="@ResetEmailInputs">Cancle anyway</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+
+@code {
+    private MessageView Message { get; set; }
+    private Modal CancleEmailModal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Message = new MessageView();
+    }
+
+    private async Task CreateNewEmail()
+    {
+        var response = await _emailService.CreateEmailAsync(
+            new CreateEmailRequest
+                {
+                    EmailMessage = Message
+                }
+        );
+
+        if (response.Success)
+        {
+            await _notificationService.Success("Email sent successfully!");
+
+            Message = new MessageView();
+        }
+        else
+        {
+            await _notificationService.Error("An error happened:" + response.ErrorMessage);
+        }
+    }
+
+    private void OpenCancleEmailModal()
+    {
+        CancleEmailModal.Show();
+    }
+
+    private void CloseCancleEmailModal()
+    {
+        CancleEmailModal.Hide();
+    }
+
+    private void ResetEmailInputs()
+    {
+        Message = new MessageView();
+        CloseCancleEmailModal();
+    }
+}

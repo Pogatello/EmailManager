@@ -1,0 +1,154 @@
+﻿@page "/history"
+@using EmailManager.Contract;
+@using EmailManager.Messaging.EmailViews;
+@using EmailManager.Messaging.Request;
+
+@inject IEmailService _emailService;
+@inject INotificationService _notificationService;
+
+<PageTitle>Email history</PageTitle>
+
+@if (Messages != null && Messages.Any()){
+    <div class="container">
+        <h3 class="mb-3">Email history</h3>
+        <Table Striped Hoverable ThemeContrast="ThemeContrast.Dark">
+            <TableHeader>
+                <TableRow>
+                    <TableHeaderCell>ID</TableHeaderCell>
+                    <TableHeaderCell>From</TableHeaderCell>
+                    <TableHeaderCell>To</TableHeaderCell>
+                    <TableHeaderCell>Subject</TableHeaderCell>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                @foreach (var message in Messages)
+                {
+                    <TableRow Clicked="() => OpenDetailsFor(message.Id)">
+                        <TableRowHeader>@message.Id</TableRowHeader>
+                        <TableRowCell>@message.From</TableRowCell>
+                        <TableRowCell>@message.To</TableRowCell>
+                        <TableRowCell>@message.Subject</TableRowCell>
+                    </TableRow>
+                }
+            </TableBody>
+        </Table>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-center mt-5">
+        <div class="spinner-border text-primary" style="width:100px; height:100px;" role="status">
+            <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+}
+
+<Modal @ref="EmailDetailsModal">
+    <ModalContent CenteredSize="ModalSize.ExtraLarge">
+        <ModalHeader>
+            <ModalTitle>Email details</ModalTitle>
+            <CloseButton />
+        </ModalHeader>
+        <ModalBody>
+            @if (SelectedMessage != null)
+            {
+                <EditForm Model="@SelectedMessage">
+                    <div class="form-group">
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label" for="txtForm">From</label>
+                                <InputText disabled class="form-control" id="txtForm" @bind-Value="SelectedMessage.From" />
+                            </div>
+                            <div class="col">
+                                <label class="form-label" for="txtTo">To</label>
+                                <InputText disabled class="form-control" id="txtTo" @bind-Value="SelectedMessage.To" />
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label" for="txtCC">CC</label>
+                                <InputText disabled class="form-control" id="txtCC" @bind-Value="SelectedMessage.CC" />
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label" for="txtSubject">Subject</label>
+                                <InputText disabled class="form-control" id="txtSubject" @bind-Value="SelectedMessage.Subject" />
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label" for="dllPriority">Priority</label>
+                                <InputSelect disabled @bind-Value="SelectedMessage.Priority" class="form-select">
+                                    @foreach (var item in Enum.GetValues(typeof(Priority)))
+                                    {
+                                        <option value="@item">@item</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label" for="txtContent">Content</label>
+                                <InputTextArea disabled class="form-control" id="txtContent" @bind-Value="SelectedMessage.Content" rows="7" />
+                            </div>
+                        </div>
+
+                    </div>
+
+                </EditForm>
+            }
+            else
+            {
+                <p>Error with message details</p>
+            }
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="@CloseEmailDetailsModal">Close</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<style>
+ .modal-dialog {
+        max-width:70%;
+    }
+</style>
+
+@code {
+    private IEnumerable<MessageView> Messages;
+    private MessageView SelectedMessage;
+    private Modal EmailDetailsModal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await _emailService.GetEmailsAsync();
+
+        if (response.Success)
+        {
+            Messages = response.Messages;
+        }
+        else
+        {
+            await _notificationService.Error("An error happened:" + response.ErrorMessage);
+        }
+    }
+
+    private void OpenEmailDetailsModal()
+    {
+        EmailDetailsModal.Show();
+    }
+
+    private void CloseEmailDetailsModal()
+    {
+        EmailDetailsModal.Hide();
+    }
+
+    private void OpenDetailsFor(long messageId)
+    {
+        SelectedMessage = Messages?.FirstOrDefault(x => x.Id == messageId);
+        OpenEmailDetailsModal();
+    }
+
+}
